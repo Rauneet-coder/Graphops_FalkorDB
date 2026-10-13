@@ -1,0 +1,61 @@
+services:
+  falkordb:
+    image: falkordb/falkordb:latest
+    container_name: graphops-falkordb
+    ports:
+      - "6379:6379"
+    volumes:
+      - falkordb_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - graphops-net
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: graphops-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - FALKORDB_HOST=falkordb
+      - FALKORDB_PORT=6379
+      - FALKORDB_GRAPH=graphops
+      - ENVIRONMENT=development
+    volumes:
+      - ./backend:/app
+      - ./graph:/graph
+    depends_on:
+      falkordb:
+        condition: service_healthy
+    networks:
+      - graphops-net
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: graphops-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      - backend
+    networks:
+      - graphops-net
+
+networks:
+  graphops-net:
+    driver: bridge
+
+volumes:
+  falkordb_data:
