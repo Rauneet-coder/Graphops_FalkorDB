@@ -1,0 +1,107 @@
+{
+  "nodes": [
+    {
+      "id": "srv-checkout",
+      "label": "Service",
+      "properties": { "name": "checkout-service", "tier": "tier-0", "language": "typescript", "status": "degraded" }
+    },
+    {
+      "id": "srv-payment",
+      "label": "Service",
+      "properties": { "name": "payment-service", "tier": "tier-0", "language": "golang", "status": "outage" }
+    },
+    {
+      "id": "srv-auth",
+      "label": "Service",
+      "properties": { "name": "auth-service", "tier": "tier-1", "language": "golang", "status": "healthy" }
+    },
+    {
+      "id": "srv-inventory",
+      "label": "Service",
+      "properties": { "name": "inventory-service", "tier": "tier-1", "language": "python", "status": "healthy" }
+    },
+    {
+      "id": "dev-sarah",
+      "label": "Developer",
+      "properties": { "email": "sarah.chen@company.com", "name": "Sarah Chen", "team": "Core Payments", "on_call": true }
+    },
+    {
+      "id": "dev-alex",
+      "label": "Developer",
+      "properties": { "email": "alex.k@company.com", "name": "Alex Kumar", "team": "Frontend Platforms", "on_call": false }
+    },
+    {
+      "id": "repo-payment",
+      "label": "Repository",
+      "properties": { "name": "org/payment-service", "url": "https://github.com/org/payment-service", "default_branch": "main" }
+    },
+    {
+      "id": "commit-b8f12a",
+      "label": "Commit",
+      "properties": {
+        "sha": "b8f12a4",
+        "message": "perf: lower connection pool size & adjust lock TTL",
+        "timestamp": 1728841200,
+        "diff_summary": "values.yaml: pool.max_conns 50 -> 5, lock_ttl 100ms -> 10ms"
+      }
+    },
+    {
+      "id": "dep-payment-v241",
+      "label": "Deployment",
+      "properties": {
+        "id": "deploy-payment-v2.4.1",
+        "version": "v2.4.1",
+        "environment": "production",
+        "timestamp": 1728841450,
+        "status": "SUCCESS"
+      }
+    },
+    {
+      "id": "inc-4091",
+      "label": "Incident",
+      "properties": {
+        "id": "INC-4091",
+        "title": "Payment gateway timeout on checkout",
+        "severity": "P1",
+        "status": "INVESTIGATING",
+        "timestamp": 1728842100,
+        "error_message": "RedisTimeoutException: Connection pool exhausted in payment-service"
+      }
+    },
+    {
+      "id": "rca-4091",
+      "label": "RootCause",
+      "properties": {
+        "id": "rca-4091",
+        "summary": "Connection pool starvation caused by pool size reduction in v2.4.1",
+        "category": "CONFIG_ERROR"
+      }
+    },
+    {
+      "id": "fix-4091",
+      "label": "Fix",
+      "properties": {
+        "id": "fix-4091",
+        "action_type": "ROLLBACK",
+        "description": "Roll back payment-service to v2.4.0",
+        "command": "helm rollback payment-service 1"
+      }
+    }
+  ],
+  "relationships": [
+    { "source": "srv-checkout", "target": "srv-payment", "type": "DEPENDS_ON", "properties": { "protocol": "gRPC", "critical": true } },
+    { "source": "srv-checkout", "target": "srv-inventory", "type": "DEPENDS_ON", "properties": { "protocol": "HTTP", "critical": false } },
+    { "source": "srv-payment", "target": "srv-auth", "type": "DEPENDS_ON", "properties": { "protocol": "gRPC", "critical": true } },
+    { "source": "srv-payment", "target": "dev-sarah", "type": "OWNED_BY", "properties": { "role": "primary" } },
+    { "source": "repo-payment", "target": "dev-sarah", "type": "OWNED_BY", "properties": { "role": "lead" } },
+    { "source": "commit-b8f12a", "target": "dev-sarah", "type": "CHANGED_BY", "properties": { "timestamp": 1728841200 } },
+    { "source": "commit-b8f12a", "target": "repo-payment", "type": "CHANGED_BY", "properties": { "branch": "main" } },
+    { "source": "dep-payment-v241", "target": "srv-payment", "type": "DEPLOYED_BY", "properties": { "namespace": "prod" } },
+    { "source": "dep-payment-v241", "target": "commit-b8f12a", "type": "DEPLOYED_BY", "properties": {} },
+    { "source": "dep-payment-v241", "target": "dev-sarah", "type": "DEPLOYED_BY", "properties": {} },
+    { "source": "inc-4091", "target": "srv-checkout", "type": "CAUSED_BY", "properties": {} },
+    { "source": "inc-4091", "target": "rca-4091", "type": "CAUSED_BY", "properties": { "confidence": 0.95 } },
+    { "source": "inc-4091", "target": "fix-4091", "type": "RESOLVED_BY", "properties": {} },
+    { "source": "rca-4091", "target": "fix-4091", "type": "RESOLVED_BY", "properties": {} }
+  ]
+}
