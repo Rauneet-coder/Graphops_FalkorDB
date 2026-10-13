@@ -1,0 +1,163 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "GraphOpsDomainOntology",
+  "version": "1.0.0",
+  "description": "Formal SRE incident investigation ontology for FalkorDB",
+  "nodes": [
+    {
+      "label": "Service",
+      "description": "Microservice, datastore, or cache component",
+      "properties": {
+        "name": { "type": "string", "required": true, "unique": true },
+        "tier": { "type": "string", "enum": ["tier-0", "tier-1", "tier-2"] },
+        "language": { "type": "string" },
+        "status": { "type": "string", "enum": ["healthy", "degraded", "outage"] }
+      }
+    },
+    {
+      "label": "Repository",
+      "description": "Source code repository",
+      "properties": {
+        "name": { "type": "string", "required": true, "unique": true },
+        "url": { "type": "string", "required": true },
+        "default_branch": { "type": "string", "default": "main" }
+      }
+    },
+    {
+      "label": "Commit",
+      "description": "Git commit containing code or manifest changes",
+      "properties": {
+        "sha": { "type": "string", "required": true, "unique": true },
+        "message": { "type": "string", "required": true },
+        "timestamp": { "type": "integer", "required": true },
+        "diff_summary": { "type": "string" }
+      }
+    },
+    {
+      "label": "Developer",
+      "description": "Software engineer or team member",
+      "properties": {
+        "email": { "type": "string", "required": true, "unique": true },
+        "name": { "type": "string", "required": true },
+        "team": { "type": "string", "required": true },
+        "on_call": { "type": "boolean", "default": false }
+      }
+    },
+    {
+      "label": "Deployment",
+      "description": "Environment deployment artifact",
+      "properties": {
+        "id": { "type": "string", "required": true, "unique": true },
+        "version": { "type": "string", "required": true },
+        "environment": { "type": "string", "required": true },
+        "timestamp": { "type": "integer", "required": true },
+        "status": { "type": "string", "enum": ["SUCCESS", "FAILED", "ROLLED_BACK"] }
+      }
+    },
+    {
+      "label": "Incident",
+      "description": "Active or historical SRE outage alert",
+      "properties": {
+        "id": { "type": "string", "required": true, "unique": true },
+        "title": { "type": "string", "required": true },
+        "severity": { "type": "string", "enum": ["P1", "P2", "P3", "P4"] },
+        "status": { "type": "string", "enum": ["TRIGGERED", "INVESTIGATING", "RESOLVED"] },
+        "timestamp": { "type": "integer", "required": true },
+        "error_message": { "type": "string" }
+      }
+    },
+    {
+      "label": "RootCause",
+      "description": "Diagnosed technical reason for incident",
+      "properties": {
+        "id": { "type": "string", "required": true, "unique": true },
+        "summary": { "type": "string", "required": true },
+        "category": { "type": "string", "required": true }
+      }
+    },
+    {
+      "label": "Fix",
+      "description": "Remediation action taken or prescribed",
+      "properties": {
+        "id": { "type": "string", "required": true, "unique": true },
+        "action_type": { "type": "string", "enum": ["ROLLBACK", "RESTART", "CONFIG_PATCH"] },
+        "description": { "type": "string", "required": true },
+        "command": { "type": "string" }
+      }
+    }
+  ],
+  "relationships": [
+    {
+      "type": "DEPENDS_ON",
+      "source": "Service",
+      "target": "Service",
+      "description": "Upstream service dependency call"
+    },
+    {
+      "type": "OWNED_BY",
+      "source": "Service",
+      "target": "Developer",
+      "description": "Service code/operational owner"
+    },
+    {
+      "type": "OWNED_BY",
+      "source": "Repository",
+      "target": "Developer",
+      "description": "Repository maintainer"
+    },
+    {
+      "type": "CHANGED_BY",
+      "source": "Commit",
+      "target": "Developer",
+      "description": "Author of git commit"
+    },
+    {
+      "type": "CHANGED_BY",
+      "source": "Commit",
+      "target": "Repository",
+      "description": "Target repository changed by commit"
+    },
+    {
+      "type": "DEPLOYED_BY",
+      "source": "Deployment",
+      "target": "Service",
+      "description": "Deployment applied to service"
+    },
+    {
+      "type": "DEPLOYED_BY",
+      "source": "Deployment",
+      "target": "Commit",
+      "description": "Commit packaged inside deployment"
+    },
+    {
+      "type": "DEPLOYED_BY",
+      "source": "Deployment",
+      "target": "Developer",
+      "description": "Developer who triggered deploy"
+    },
+    {
+      "type": "CAUSED_BY",
+      "source": "Incident",
+      "target": "Service",
+      "description": "Service experiencing the symptom"
+    },
+    {
+      "type": "CAUSED_BY",
+      "source": "Incident",
+      "target": "RootCause",
+      "description": "Root cause responsible for incident"
+    },
+    {
+      "type": "RESOLVED_BY",
+      "source": "Incident",
+      "target": "Fix",
+      "description": "Remediation fix applied to incident"
+    },
+    {
+      "type": "RESOLVED_BY",
+      "source": "RootCause",
+      "target": "Fix",
+      "description": "Proven remediation action for root cause"
+    }
+  ]
+}
