@@ -1,0 +1,11 @@
+# Resolve in the pinned Python image; requirements.txt locks the full dependency set.
+fastapi==0.143.0
+uvicorn[standard]==0.54.0
+pydantic==2.14.1
+pydantic-settings==2.15.0
+falkordb==1.7.1
+redis==8.1.0
+anyio==4.15.1
+httpx==0.28.1
+pytest==9.1.1
+ruff==0.15.0
