@@ -43,3 +43,49 @@ def create_app(
     )
     application.add_middleware(
         CORSMiddleware,
+        allow_origins=config.CORS_ORIGINS,
+        allow_credentials=True,
+        allow_methods=["GET", "POST"],
+        allow_headers=["Content-Type"],
+    )
+
+    @application.get("/health/live", tags=["System"])
+    async def liveness():
+        return {"status": "alive", "service": config.PROJECT_NAME, "version": config.VERSION}
+
+    @application.get("/health", tags=["System"])
+    @application.get("/health/ready", tags=["System"])
+    async def readiness(request: Request, response: Response):
+        client = getattr(request.app.state, "falkordb", None)
+        ready = False
+        if client is not None:
+            ready = await anyio.to_thread.run_sync(
+                client.is_ready, limiter=request.app.state.graph_limiter
+            )
+        initialized = client is not None and client.initialized
+        response.status_code = 200 if ready else 503
+        return {
+            "status": "ready" if ready else "not_ready",
+            "service": config.PROJECT_NAME,
+            "version": config.VERSION,
+            "database": {"type": "FalkorDB", "graph_query_capable": ready},
+            "initialization": {
+                "scope": "infrastructure",
+                "completed": initialized,
+                "demo_data_loaded": False,
+            },
+        }
+
+    @application.get("/", tags=["System"])
+    async def root():
+        return {
+            "message": "Welcome to GraphOps API",
+            "docs": "/docs",
+            "liveness": "/health/live",
+            "readiness": "/health/ready",
+        }
+
+    return application
+
+
+app = create_app()
