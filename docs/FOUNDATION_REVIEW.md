@@ -58,3 +58,63 @@ Final command: `scripts/verify-stage1.sh` — **exit 0**. Project:
 `graphops-stage1-check-1791978202-44498`, using a fresh isolated volume and no
 published test ports. Its complete log is retained locally at
 `/tmp/graphops-stage1-verification.log`.
+
+| Check | Actual result |
+| --- | --- |
+| Compose validation | Canonical, dev override, and test override parse successfully |
+| Production image builds | Backend pip install/pip check and frontend npm ci succeeded |
+| Backend unit/live suite | `python -m pytest -q -p no:cacheprovider --live-graph`: **25 passed, 1 warning in 1.40s**; no live skips |
+| Backend lint | `ruff check --no-cache app tests`: **All checks passed** |
+| Frontend checks in Dockerfile | ESLint CLI with zero allowed warnings, tsc --noEmit, Next production build: **passed** |
+| Actual Cypher | `GRAPH.RO_QUERY graphops 'RETURN 1 AS graphops_ready' TIMEOUT 500` returned **1** |
+| Ordinary Redis | PING succeeded, but graph initialization/readiness failed as required |
+| Health before lifespan/init | 503 readiness, 200 liveness; live cold backend started while DB was stopped remained uninitialized/503 |
+| Real outage/recovery | Stopping FalkorDB caused readiness/alias 503 while liveness remained 200; both existing and cold-started backend recovered after DB restart |
+| Explicit live mode during outage | Intentionally selected live test failed with **pytest exit 1**, “Required live FalkorDB initialization failed”; harness required that failure |
+| Persistence | A unique non-fixture record survived stop/start and a force-recreated graph container; read before any probe-graph initialization could recreate it |
+| Effective disk settings | `dir=/var/lib/falkordb/data`, `appendonly=yes`, `appendfsync=everysec` |
+| Production frontend | Actual page and health returned 200; obsolete engine-ready badge absent; lint dependencies absent from standalone runner |
+| Missing dependency/config cases | Required-package import failure, missing driver interface, malformed CORS, invalid timeout order, graph-query failure and retry covered |
+| Event loop/lifecycle | Blocking graph probe left liveness responsive; client/pool shutdown cleanup covered |
+
+The TestClient warning is Starlette's deprecation of the httpx integration; tests
+still pass. It is reported rather than hidden. No latency/SLO claim is made from
+these test durations or the graph engine's diagnostic timings.
+
+## Failures found and fixed during live verification
+
+The initial suite passed, but the first full lifecycle script failed when replacing
+the graph container. A constant RETURN query creates an empty graph key without
+a durable graph mutation to replay from AOF. The non-fixture probe graph persisted,
+but the empty readiness graph did not. Readiness now marks failed probes
+uninitialized and the lifespan worker retries initialization; the readiness route
+itself remains read-only. The final full replacement check passed.
+
+The image exposes `/data` as a symlink to `/var/lib/falkordb/data`. Compose was
+changed to mount the effective canonical directory explicitly. Test cleanup also
+avoids GRAPH.DELETE on empty graphs without durable writes: that command errored
+during AOF replay on 6.0.2. Guarded Redis DEL targets only freshly generated
+`graphops_test_stage1_*` graph keys and is idempotent during replay. The demo graph
+is never selected for test cleanup. Verification volumes are retained, not deleted.
+
+An initial non-root Ruff invocation could not create its default cache in the
+application directory; verification now uses --no-cache. An ESLint 10 trial passed
+checks but produced plugin peer conflicts; it was replaced with the compatible
+9.39.5 pin and a clean strict-peer lock resolution. These failed attempts are not
+reported as final successful verification.
+
+## Dependency advisories and limitations
+
+The production npm audit (`npm audit --omit=dev --json`) reported **zero advisories**.
+The full audit reported **five high entries for one development-chain advisory**:
+[braces stack-exhaustion DoS, GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm).
+No patched braces version was published when checked. It is pulled through the
+Next ESLint plugin's glob dependencies, not the standalone production runner.
+Do not run npm audit fix --force: its suggested downgrade returns to unsupported
+Next 14 tooling. Preserve the evidence rather than claiming a clean full audit.
+
+[ESLint 9 is EOL](https://eslint.org/version-support/), but current Next lint
+plugins' published peer ranges end at ESLint 9. The pin is a compatibility
+limitation, not a claim of supported lint tooling. Revisit when upstream publishes
+compatible plugin releases. The production app runs supported Node 24/Next 16.
+
