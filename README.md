@@ -36,3 +36,39 @@ command is:
 ```bash
 cp .env.example .env
 docker compose up --build
+```
+
+The current Compose file uses source bind mounts and development runners; it does
+not initialize the graph. Fresh-clone completion is unverified. Current addresses
+are [frontend](http://localhost:3000), [API docs](http://localhost:8000/docs), and
+FalkorDB at `localhost:6379`. Published ports currently listen beyond loopback;
+Stage 1 must correct their bindings. Routine shutdown uses `docker compose down`
+without deleting volumes. An explicit graph-only reset will be implemented and
+verified during the event; there is no supported reset command yet.
+
+## Intended investigation
+
+A user selects checkout incident `INC-4091`. FalkorDB follows checkout → payment
+→ Redis, retrieves bounded recent deployments and their pipeline/commit provenance,
+and compares an earlier resolved incident and proven fix. The result cites actual
+paths, compares plausible candidates, preserves uncertainty, and recommends an
+operator action. Optional LLM synthesis must use the same retrieved evidence;
+deterministic mode remains usable without credentials. No remediation executes
+automatically. This flow is planned, not working at this revision.
+
+## Validation and documentation
+
+This review reran the existing backend suite: **3 passed, 1 deprecation warning**.
+Compose configuration validation passed. Docker engine inspection failed because
+its socket was absent; containers, Cypher, initialization, and persistence remain
+unverified. Earlier frontend lint/build results are recorded as prior review
+evidence, not fresh results from this pass.
+
+- [Project instructions](AGENTS.md)
+- [Ordered tasks and event schedule](docs/TASKS.md)
+- [Architecture and evidence contract](docs/ARCHITECTURE.md)
+- [Authoritative target graph model and legacy mapping](docs/GRAPH_SCHEMA.md)
+- [Current assessment and exact validation scope](docs/FOUNDATION_REVIEW.md)
+- [Implemented and planned API routes](docs/api/endpoints.md)
+- [Setup, persistence, reset, and troubleshooting plan](docs/runbooks/quickstart.md)
+- [Demo and submission checklist](docs/DEMO.md)
