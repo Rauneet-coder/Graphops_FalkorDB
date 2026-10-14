@@ -14,12 +14,14 @@ flowchart LR
     LLM --> Backend
 ```
 
-The baseline has a static frontend, root/health routes, graph templates, and
-Compose scaffolding. Investigation, truthful readiness, nine-label reconciliation,
-initialization, AI, and interactive paths remain planned. Next 14 is currently
-locked and must be upgraded to a supported patched version. Driver I/O currently
-blocks an async route and must move to supported async APIs or bounded workers.
+Stage 1 now has production Docker images, pinned FalkorDB 6.0.2, lifecycle-owned
+bounded graph I/O, actual-query readiness, strict settings, and verified restart/
+replacement persistence. Next 16.4.0 / React 19.3.0 run on digest-pinned Node 24;
+the UI remains a static scaffold with an honest planned-state badge. Current
+lint tooling compatibility/advisory limitations are recorded in the review.
 
-The target preserves FalkorDB, FastAPI, Next.js, and Docker Compose. All essential
-dependency/time-window/historical reasoning runs in Cypher. No automatic rollback,
-developer contact, streaming, or cause/fix writeback is part of the MVP.
+Stage 1 initialization creates only an empty graph and reports infrastructure
+scope with `demo_data_loaded: false`. Domain schema/seed reconciliation,
+investigation, grounded AI, and interactive evidence paths remain later stages.
+The target preserves FalkorDB, FastAPI, Next.js, and Docker Compose. No automatic
+rollback, developer contact, streaming, or cause/fix writeback is in MVP scope.
