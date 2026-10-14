@@ -2,16 +2,17 @@
 
 Reviewed October 14, 2026. Browser development base: `http://localhost:8000`.
 Internal Next.js server requests in Compose must use `http://backend:8000`.
-Only `/` and `/health` are implemented at the reviewed baseline.
+At the reviewed baseline only `/` and `/health` existed. Stage 1 now implements
+the system routes below; domain routes remain planned.
 
 ## Route availability
 
 | Method and path | Current state | Intended behavior |
 | --- | --- | --- |
 | GET `/` | Implemented | API metadata/docs links |
-| GET `/health` | Implemented, misleading | Stage 1 readiness alias, 503 on graph/init failure |
-| GET `/health/live` | Planned, Stage 1 | Process liveness, 200 even when graph unavailable |
-| GET `/health/ready` | Planned, Stage 1 | Read-only graph query and initialization checks; 200 ready or 503 unavailable |
+| GET `/health` | Implemented, Stage 1 | Readiness alias; 503 on graph/init failure |
+| GET `/health/live` | Implemented, Stage 1 | Process liveness, 200 even when graph unavailable |
+| GET `/health/ready` | Implemented, Stage 1 | Read-only graph query and initialization checks; 200 ready or 503 unavailable |
 | GET `/api/v1/services` | Planned, Stage 3 | Bounded services filtered by environment |
 | GET `/api/v1/incidents` | Planned, Stage 3 | Bounded active and historical incident list |
 | GET `/api/v1/incidents/{incident_id}` | Planned, Stage 3 | Incident and observed symptoms; 404 unknown |
@@ -79,3 +80,27 @@ LLM failures after successful graph retrieval yield a labelled deterministic
 response. Graph failure yields 503 and never a fabricated successful explanation.
 Empty collections differ from unknown incident IDs. See
 [architecture](../ARCHITECTURE.md) and [task checks](../TASKS.md).
+
+## Implemented Stage 1 health response
+
+```json
+{
+  "status": "ready",
+  "service": "GraphOps API",
+  "version": "0.1.0",
+  "database": {"type": "FalkorDB", "graph_query_capable": true},
+  "initialization": {
+    "scope": "infrastructure",
+    "completed": true,
+    "demo_data_loaded": false
+  }
+}
+```
+
+Readiness is checked through `GRAPH.RO_QUERY` with a query timeout. A failure or
+incomplete initialization returns HTTP 503 with `status: not_ready` and capability
+false. Liveness remains 200 with `status: alive`. Readiness does not run writes;
+the bounded lifecycle worker initializes/retries the empty graph. This response
+makes no claim that schema/fixtures exist. Stage 2 must extend the initialization
+contract before claiming an investigable demo. System health responses use this
+format; planned domain-error envelopes above do not yet exist.
