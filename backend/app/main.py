@@ -36,10 +36,18 @@ def create_app(
         finally:
             await anyio.to_thread.run_sync(client.close, limiter=limiter)
 
+    tags_metadata = [
+        {
+            "name": "System",
+            "description": "Liveness, readiness, and service discovery probes",
+        },
+    ]
+
     application = FastAPI(
         title=config.PROJECT_NAME,
         version=config.VERSION,
         lifespan=lifespan,
+        openapi_tags=tags_metadata,
     )
     application.add_middleware(
         CORSMiddleware,
