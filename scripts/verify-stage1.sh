@@ -22,8 +22,10 @@ probe_token=$("${compose[@]}" exec -T backend python -m tests.stage1_checks writ
 "${compose[@]}" stop falkordb
 "${compose[@]}" exec -T backend python -m tests.stage1_checks outage
 # Explicit live mode must fail instead of skipping/succeeding when its DB is down.
-if "${compose[@]}" exec -T backend python -m pytest -q -p no:cacheprovider --live-graph -k live_probe; then
-  echo 'ERROR: explicitly required live test unexpectedly succeeded during outage' >&2
+live_exit=0
+"${compose[@]}" exec -T backend python -m pytest -q -p no:cacheprovider --live-graph -k live_probe || live_exit=$?
+if [ "$live_exit" -ne 1 ]; then
+  echo "ERROR: expected pytest failure (1) during outage, got $live_exit" >&2
   exit 1
 fi
 "${compose[@]}" run -d --no-deps --name "$cold_backend" backend
@@ -44,5 +46,6 @@ docker exec "$cold_backend" python -m tests.stage1_checks ready
 "${compose[@]}" exec -T backend python -m tests.stage1_checks read-probe "$probe_token"
 "${compose[@]}" exec -T backend python --version
 "${compose[@]}" exec -T frontend node --version
+"${compose[@]}" exec -T frontend node -e 'try { require.resolve("eslint"); process.exit(1) } catch (error) { if (error.code !== "MODULE_NOT_FOUND") throw error; console.log("No lint dependencies in production runner") }'
 "${compose[@]}" exec -T falkordb redis-cli --raw MODULE LIST
 printf '%s\n' 'Stage 1 live verification passed; Stage 2 domain schema/seed was not loaded.'
