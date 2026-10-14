@@ -149,6 +149,7 @@ def test_client_uses_graph_capability_bounded_timeouts_and_closes(monkeypatch):
     graph.ro_query.side_effect = ResponseError('unknown command GRAPH.RO_QUERY')
     assert client.is_ready() is False
     graph.ro_query.side_effect = None
+    assert client.initialize() is True
     assert client.is_ready() is True
     client.close()
     driver.connection.close.assert_called_once()
