@@ -19,7 +19,10 @@ def live_graph(require_live_graph):
         assert graph_id.startswith('graphops_test_stage1_') and graph_id != 'graphops'
         try:
             if client.initialized:
-                client.get_graph().delete()
+                # DEL is idempotent even for a graph without durable writes.
+                # GRAPH.DELETE of that empty key errors during AOF replay on
+                # server 6.0.2. This targets only the generated test graph key.
+                client.get_client().connection.delete(graph_id)
         finally:
             client.close()
 
