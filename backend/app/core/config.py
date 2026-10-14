@@ -1,45 +1,30 @@
 import json
+from typing import Annotated, Literal
+from urllib.parse import urlsplit
 
-from pydantic import field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field, field_validator, model_validator
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "GraphOps API"
     VERSION: str = "0.1.0"
     API_V1_PREFIX: str = "/api/v1"
-    ENVIRONMENT: str = "development"
+    ENVIRONMENT: Literal["development", "test", "production"] = "development"
 
-    # FalkorDB Configuration
-    FALKORDB_HOST: str = "localhost"
-    FALKORDB_PORT: int = 6379
-    FALKORDB_GRAPH: str = "graphops"
+    FALKORDB_HOST: str = Field(default="localhost", min_length=1)
+    FALKORDB_PORT: int = Field(default=6379, ge=1, le=65535)
+    FALKORDB_GRAPH: str = Field(default="graphops", pattern=r"^[A-Za-z][A-Za-z0-9_-]{0,63}$")
+    FALKORDB_CONNECT_TIMEOUT_SECONDS: float = Field(default=1, gt=0, le=10)
+    FALKORDB_SOCKET_TIMEOUT_SECONDS: float = Field(default=2, gt=0, le=30)
+    FALKORDB_QUERY_TIMEOUT_MS: int = Field(default=500, ge=50, le=10000)
+    GRAPH_WORKERS: int = Field(default=4, ge=1, le=16)
+    GRAPH_INIT_RETRY_SECONDS: float = Field(default=1, ge=0.05, le=30)
 
-    # CORS
-    CORS_ORIGINS: list[str] | str = [
+    CORS_ORIGINS: Annotated[list[str], NoDecode] = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",
     ]
 
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
-    def assemble_cors_origins(cls, v: str | list[str]) -> list[str]:
-        if isinstance(v, str) and not v.startswith("["):
-            return [i.strip() for i in v.split(",") if i.strip()]
-        if isinstance(v, str) and v.startswith("["):
-            try:
-                parsed = json.loads(v)
-                if isinstance(parsed, list):
-                    return [str(item) for item in parsed]
-            except (json.JSONDecodeError, TypeError):
-                return [v]
-        return v if isinstance(v, list) else [str(v)]
-
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        extra="ignore",
-    )
-
-
-settings = Settings()
