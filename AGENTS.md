@@ -85,5 +85,21 @@ maintainable modules.
 - Follow `docs/TASKS.md` in order. Update architecture/schema/API docs alongside
   relevant changes; use repository-relative links.
 - Do not silently change architecture. Explain material changes and their reasons.
-- Current authorization is planning only. After updating guidance and tasks, stop
-  and wait for the next user instruction before starting Stage 1.
+- Latest scope (October 14): the user explicitly requested "Start Stage 1 only"
+  and then "continue". Stage 1 reusable infrastructure is authorized now. Stop
+  after Stage 1; do not start Stage 2. Keep domain fixtures, graph model,
+  investigation queries, and their implementation untouched in this stage.
+- Event window: October 15, 2026, 00:01 IST through October 18, 2026, 23:59 IST
+  (October 14, 18:31 UTC through October 18, 18:29 UTC). Before opening, only
+  research, review, planning, and documentation were originally authorized before
+  opening. The latest instruction makes an exception for Stage 1 infrastructure
+  only. Main FalkorDB domain implementation remains event work. Recheck the clock
+  and current revision when work resumes; do not broaden the latest Stage 1 scope.
+- Preserve and identify the pre-event scaffold at `fc9739d50a025662ae208807e96781d12db6affd`.
+  Record event-window implementation separately; do not present pre-event graph
+  assets as new event work. See [the schedule](docs/TASKS.md) and
+  [official rules](https://www.wemakedevs.org/hackathons/falkordb).
+- Prioritize Track 01 only. Local setup plus a working demo video is acceptable
+  when live deployment is unavailable. Verify actual submission-panel requirements
+  before claiming submission readiness. No automatic later execution is implied
+  by a documented schedule.
