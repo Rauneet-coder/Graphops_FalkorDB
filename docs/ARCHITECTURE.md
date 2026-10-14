@@ -1,8 +1,9 @@
 # GraphOps architecture
 
 Reviewed October 14, 2026 against `fc9739d50a025662ae208807e96781d12db6affd`.
-This is the target architecture; only the scaffold described in
-[the foundation review](FOUNDATION_REVIEW.md) currently exists. Acceptance follows
+Stage 1 infrastructure is now live-verified. Domain investigation sections below
+remain the target architecture; see [the review](FOUNDATION_REVIEW.md) for exact
+implemented scope and checks. Acceptance follows
 [TASKS.md](TASKS.md), in order.
 
 ## Stack and responsibilities
@@ -41,13 +42,16 @@ validation rather than becoming an arbitrary allowed-origin string.
 
 Liveness (`GET /health/live`) indicates that the process responds. Readiness
 (`GET /health/ready`, with `/health` as its compatibility alias) requires actual
-read-only Cypher capability and successful schema/seed initialization validation.
+read-only Cypher capability and successful required initialization. Stage 1
+initializes only an empty graph and explicitly reports `scope: infrastructure`,
+`demo_data_loaded: false`. Stage 2 must add schema/seed validation before reporting
+demo readiness.
 Return 503 before initialization or during graph failure, and recover after graph
 capability returns. Ordinary Redis `PING` is not graph readiness. Investigation
 graph failures return a dependency error; no fabricated success is permitted.
 
 Pin and record compatible server/client versions only after live verification.
-Use a root backend build context to include `backend/` and `graph/` assets. Build
+Stage 1 uses a root backend build context to include `backend/` and `graph/` assets. Build
 the frontend with `npm ci` and its committed lockfile, then run a production
 server. Lock Python dependencies, exclude local artifacts/secrets with appropriate
 `.dockerignore` files, and use supported Node/Next/React/ESLint/types together.
@@ -60,8 +64,11 @@ use `http://backend:8000` on the Compose network. Public build-time configuratio
 must be passed at build time when required. Never expose keys through
 `NEXT_PUBLIC_*`. Add backend/frontend healthchecks and dependency ordering.
 
-Initialization validates fixtures before writes, creates supported indexes, seeds
-idempotently, and verifies identity/schema invariants before readiness. Configure
+The Stage 2 initializer will validate fixtures before writes, create supported
+indexes, seed idempotently, and verify identity/schema invariants before demo
+readiness. Stage 1 lifecycle initialization performs only `RETURN 1`, then a
+read-only probe. Its worker retries after failed probes, including empty-graph
+keys absent after AOF replay; no domain records or extra labels are created. Configure
 FalkorDB persistence explicitly, inspect its effective configuration, and prove
 restart survival with an extra record distinct from fixture records. A volume or
 recreated seed alone does not establish persistence. Routine startup never erases
@@ -81,65 +88,3 @@ earlier Incident --CAUSED_BY--> verified RootCause --RESOLVED_BY--> proven Fix
 ```
 
 Cypher must retrieve dependency paths, filter changes by environment/time, and
-match genuinely earlier resolved incidents on relevant services. Python may
-format and score those results. A Python graph copy is outside scope. This path
-is a design example until live tests demonstrate it; no latency is claimed.
-
-## Investigation and evidence contract
-
-Start with the deterministic graph-backed flow before adding AI:
-
-1. Fetch the incident and observed affected services.
-2. Traverse outgoing dependencies upstream and incoming dependencies for downstream
-   impact, with bounded hops/rows and environment filtering.
-3. Include changes on the symptom service itself and dependencies in an explicit
-   inclusive window `[incident_time - window, incident_time]`; exclude future and
-   unrelated changes. Preserve candidates missing optional ownership/author data.
-4. Retrieve actual provenance and historical cause/fix paths. Earlier resolved
-   matches require compatible symptoms/categories and an explained relevance rank.
-5. Compare candidates, missing evidence, and competing hypotheses. Return evidence,
-   path references, recommended action, and explained confidence as an evidence
-   score, not a probability. Deployment recency alone is correlation.
-
-Nodes and edges use stable application IDs. Paths contain ordered node/edge
-sequences and actual traversal directions; the frontend cannot infer edges from
-adjacent cards. Evidence entries identify supporting facts and their origin.
-Statuses distinguish supported hypotheses, ambiguity, and insufficient evidence;
-execution mode distinguishes deterministic and LLM-assisted results. API errors
-distinguish unknown incidents (404), invalid arguments (422), and graph dependency
-failure (503). Successful responses never imply confirmed active-incident causes.
-
-## Optional grounded AI
-
-Use a small typed tool loop for incident context, dependencies, recent changes,
-and historical fixes through the repository. The LLM cannot submit Cypher or shell
-commands. Keep bounded calls, output sizes, and timeouts. Treat graph text,
-commit messages, diffs, and logs as untrusted data, not instructions.
-
-Validate structured output and referenced entities/paths against retrieved data.
-A valid evidence ID does not validate an arbitrary claim: check actual factual
-support and action prerequisites. Prefer synthesis from validated fact records
-and an allowlisted recommendation catalog when free-form entailment cannot be
-reliably checked. Unsupported/fabricated output is rejected. Missing LLM settings,
-timeouts, or invalid output produce a labelled deterministic explanation with a
-fallback reason. Graph unavailability produces 503 instead of fallback evidence.
-
-Investigation is read-only using the official client's read-only mechanism
-([client](https://github.com/FalkorDB/falkordb-py),
-[GRAPH.RO_QUERY](https://docs.falkordb.com/commands/graph.ro-query)). Writes are
-limited to initialization and a future explicitly recorded operator resolution.
-No rollback execution, developer contact, or automatic cause/fix writeback.
-
-## Scope and validation
-
-Finish checkout → payment → Redis with an earlier resolved incident, an unrelated
-deployment, and a competing candidate first. Schema drift and recurring deadlock
-follow a working primary flow. Use one directed graph library (React Flow is the
-planned choice), prioritize evidence readability, and support keyboard controls
-and honest loading/empty/ambiguity/failure/fallback states.
-
-Live FalkorDB tests, a complete API investigation, frontend checks, Compose checks,
-and a fresh isolated-volume launch/restart are required. Never delete existing
-user volumes. CI explicitly requested live tests must fail if their database is
-unavailable. Kubernetes/Jenkins/GitHub integrations, streaming, vector search,
-multi-agent coordination, and autonomous remediation are deferred.
