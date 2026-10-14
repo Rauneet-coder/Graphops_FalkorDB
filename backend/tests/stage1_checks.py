@@ -4,6 +4,7 @@ import json
 import sys
 import time
 from uuid import uuid4
+from pathlib import Path
 
 import httpx
 from app.core.config import Settings
@@ -75,6 +76,7 @@ if __name__ == '__main__':
     elif phase == 'read-probe':
         persistence('read', sys.argv[2])
     elif phase == 'frontend':
+        assert Path('/app/graph/seeds/sample_graph.json').is_file(), 'Graph assets missing from image'
         with httpx.Client(timeout=3, trust_env=False) as http:
             assert http.get('http://frontend:3000/health').json() == {'status': 'alive'}
             page = http.get('http://frontend:3000/')
