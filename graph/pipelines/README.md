@@ -1,9 +1,10 @@
-# Graph Ingestion & Transformation Pipelines
+# Ingestion scope
 
-This directory contains pipeline definitions for extracting, transforming, and ingesting graph data into FalkorDB.
+This directory is reserved documentation, not an implemented ingestion framework.
+The MVP has one planned validated idempotent fixture loader in
+`backend/app/graph/loader.py`, with one CLI entry point at `graph/seed.py`.
 
-## Pipeline Structure
-- `extractors/`: Ingest raw data from CSV, JSON, telemetry, or external APIs.
-- `transformers/`: Map source schemas into the target SRE ontology defined in `../schema/ontology.json`.
-- `loaders/`: Batch write operations into FalkorDB using Cypher transactions and unwound parameters.
-- `embedders/`: Vector embedding generation for hybrid vector + graph search in FalkorDB.
+A `Pipeline` graph node represents a concrete build/deployment run and is distinct
+from this directory. See [the target relationship contract](../../docs/GRAPH_SCHEMA.md).
+External extractors, telemetry ingestion, streaming, and vector embeddings are
+deferred until the primary graph-backed investigation works.
