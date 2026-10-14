@@ -33,3 +33,42 @@ services:
       FALKORDB_CONNECT_TIMEOUT_SECONDS: ${FALKORDB_CONNECT_TIMEOUT_SECONDS:-1}
       FALKORDB_SOCKET_TIMEOUT_SECONDS: ${FALKORDB_SOCKET_TIMEOUT_SECONDS:-2}
       FALKORDB_QUERY_TIMEOUT_MS: ${FALKORDB_QUERY_TIMEOUT_MS:-500}
+      GRAPH_WORKERS: ${GRAPH_WORKERS:-4}
+      GRAPH_INIT_RETRY_SECONDS: ${GRAPH_INIT_RETRY_SECONDS:-1}
+      ENVIRONMENT: ${ENVIRONMENT:-production}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
+    depends_on:
+      # No circular health dependency: backend creates the graph key, then both
+      # read-only readiness probes succeed. Startup retries tolerate a slow DB.
+      falkordb:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=3)"]
+      interval: 5s
+      timeout: 4s
+      retries: 6
+      start_period: 20s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: runner
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+    ports:
+      - "127.0.0.1:${FRONTEND_PUBLISHED_PORT:-3000}:3000"
+    environment:
+      API_INTERNAL_URL: ${API_INTERNAL_URL:-http://backend:8000}
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health', {signal: AbortSignal.timeout(3000)}).then(r => {if (!r.ok) process.exit(1)}).catch(() => process.exit(1))"]
+      interval: 5s
+      timeout: 4s
+      retries: 6
+      start_period: 15s
+
+volumes:
+  falkordb_data:
