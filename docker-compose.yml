@@ -1,61 +1,35 @@
 services:
   falkordb:
-    image: falkordb/falkordb:latest
-    container_name: graphops-falkordb
+    image: falkordb/falkordb:6.0.2@sha256:107455e862a824e45e8e9f5a7fbfdf5e00a08b14e13eae2577c72fd9e3f59ba6
     ports:
-      - "6379:6379"
+      - "127.0.0.1:${FALKORDB_PUBLISHED_PORT:-6379}:6379"
+    environment:
+      BROWSER: "0"
+      FALKORDB_DATA_PATH: /var/lib/falkordb/data
+      FALKORDB_GRAPH: ${FALKORDB_GRAPH:-graphops}
+      REDIS_ARGS: "--appendonly yes --appendfsync everysec --save 60 1"
+      FALKORDB_ARGS: "THREAD_COUNT 2 MAX_QUEUED_QUERIES 25 TIMEOUT 1000 RESULTSET_SIZE 10000"
     volumes:
-      - falkordb_data:/data
+      - falkordb_data:/var/lib/falkordb/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      # Backend lifecycle initializes the empty graph; this probe stays read-only.
+      test: ["CMD-SHELL", "redis-cli --raw GRAPH.RO_QUERY \"$$FALKORDB_GRAPH\" 'RETURN 1' TIMEOUT 500 | grep -qx 1"]
       interval: 5s
       timeout: 3s
-      retries: 5
-    networks:
-      - graphops-net
+      retries: 6
+      start_period: 20s
+    stop_grace_period: 30s
 
   backend:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
-    container_name: graphops-backend
+      context: .
+      dockerfile: backend/Dockerfile
     ports:
-      - "8000:8000"
+      - "127.0.0.1:${BACKEND_PUBLISHED_PORT:-8000}:8000"
     environment:
-      - FALKORDB_HOST=falkordb
-      - FALKORDB_PORT=6379
-      - FALKORDB_GRAPH=graphops
-      - ENVIRONMENT=development
-    volumes:
-      - ./backend:/app
-      - ./graph:/graph
-    depends_on:
-      falkordb:
-        condition: service_healthy
-    networks:
-      - graphops-net
-
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    container_name: graphops-frontend
-    ports:
-      - "3000:3000"
-    environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:8000
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-      - /app/.next
-    depends_on:
-      - backend
-    networks:
-      - graphops-net
-
-networks:
-  graphops-net:
-    driver: bridge
-
-volumes:
-  falkordb_data:
+      FALKORDB_HOST: ${FALKORDB_HOST:-falkordb}
+      FALKORDB_PORT: ${FALKORDB_PORT:-6379}
+      FALKORDB_GRAPH: ${FALKORDB_GRAPH:-graphops}
+      FALKORDB_CONNECT_TIMEOUT_SECONDS: ${FALKORDB_CONNECT_TIMEOUT_SECONDS:-1}
+      FALKORDB_SOCKET_TIMEOUT_SECONDS: ${FALKORDB_SOCKET_TIMEOUT_SECONDS:-2}
+      FALKORDB_QUERY_TIMEOUT_MS: ${FALKORDB_QUERY_TIMEOUT_MS:-500}
