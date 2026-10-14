@@ -89,3 +89,10 @@ readiness. Optional LLM verification will require an available configured endpoi
 The [stage plan](TASKS.md) now schedules event work and records unchecked
 acceptance criteria. Resume Stage 1 during the event after rechecking time and
 revision. No background implementation job has been created.
+
+## Pre-Event Verification Sign-Off
+
+- **Git Commit Baseline:** 50 structured pre-event foundation commits established on `main`.
+- **Backend Test Status:** 22 passing unit tests in `backend/tests/test_health.py` covering timeout ordering, strict CORS URL/port parsing, and liveness/readiness probes.
+- **Frontend Build Status:** Next.js 16 (Turbopack) production build compiled with 0 lint errors (`eslint . --max-warnings=0`).
+- **Compose Status:** Multi-container configuration verified across production, dev, and test compose manifests.
