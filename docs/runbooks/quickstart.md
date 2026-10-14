@@ -1,13 +1,12 @@
 # Local setup and operations
 
-**Current status — October 14, 2026:** scaffold startup only. The canonical
-Docker-only investigation workflow is a Stage 1–8 acceptance target, not yet
-verified. Docker engine is currently unavailable. See
-[the exact review scope](../FOUNDATION_REVIEW.md).
+Stage 1 infrastructure is live-verified. Domain initialization and investigation
+are not implemented; do not load the legacy answer-revealing fixture as an honest
+demo. See [the verification report](../FOUNDATION_REVIEW.md) for exact scope/results.
 
-## Current scaffold command
+## Canonical Docker-only startup
 
-Requires Docker Engine/Desktop running and Docker Compose:
+Requires Docker Engine/Desktop and Docker Compose running. No host Python or Node:
 
 ```bash
 cp .env.example .env
@@ -15,97 +14,77 @@ docker compose config --quiet
 docker compose up --build
 ```
 
-Check `docker compose ps`; open `http://localhost:3000` and
-`http://localhost:8000/docs`. `/health` is currently misleading: HTTP 200 does not
-prove graph connectivity. The UI's ready badge is static. There is no seed loader
-or investigation API. Existing Compose uses dev bind mounts/reload and publishes
-ports beyond loopback. It must be corrected before calling this a reliable demo.
+The three production services use image contents without source mounts or reload.
+Open frontend `http://localhost:3000` and API docs `http://localhost:8000/docs`.
+All published ports bind to `127.0.0.1`. Inspect `docker compose ps` and logs.
 
-Routine stop preserves the volume:
+```bash
+curl --fail http://localhost:8000/health/live
+curl --fail http://localhost:8000/health/ready
+docker compose exec falkordb redis-cli --raw GRAPH.RO_QUERY graphops 'RETURN 1' TIMEOUT 500
+```
+
+Liveness returns 200 while the process responds. Readiness and `/health` require
+actual read-only Cypher and successful infrastructure initialization; otherwise
+503. Infrastructure scope reports `demo_data_loaded: false`. Stage 2 must add
+schema/seed validation before claiming a usable incident demo.
+
+The backend starts after the graph process starts, retries bounded initialization,
+then both graph/backend read-only healthchecks become healthy. Frontend starts
+after backend health. A read-only graph probe needs an existing key, so backend
+startup deliberately does not wait on graph health before initializing it. Starting
+only `falkordb` may leave it unhealthy until the backend initializes the graph key.
+
+Routine stop retains the volume:
 
 ```bash
 docker compose down
 ```
 
-Do not delete existing user volumes to test startup or reset the demo.
+## Settings and addresses
 
-## Docker-only target (not available yet)
+| Setting | Default / purpose |
+| --- | --- |
+| FALKORDB_HOST / PORT | `falkordb` / `6379` on Compose network |
+| FALKORDB_GRAPH | `graphops`; validated application graph name |
+| FALKORDB_CONNECT_TIMEOUT_SECONDS | `1`, maximum connect wait per attempt |
+| FALKORDB_SOCKET_TIMEOUT_SECONDS | `2`, maximum socket wait |
+| FALKORDB_QUERY_TIMEOUT_MS | `500`, shorter than socket timeout |
+| GRAPH_WORKERS | `4`, graph worker and connection bound |
+| GRAPH_INIT_RETRY_SECONDS | `1`, bounded initialization retry interval |
+| ENVIRONMENT | `production`; also accepts development/test |
+| CORS_ORIGINS | JSON list or comma-separated HTTP(S) origins, strict validation |
+| FALKORDB_PUBLISHED_PORT | `6379`, loopback host port |
+| BACKEND_PUBLISHED_PORT | `8000`, loopback host port |
+| FRONTEND_PUBLISHED_PORT | `3000`, loopback host port |
+| NEXT_PUBLIC_API_URL | Browser-reachable `http://localhost:8000`, passed at build time; reserved for domain UI |
+| API_INTERNAL_URL | Server-only `http://backend:8000`, passed at runtime; reserved for domain UI |
 
-During implementation, update this section with exact verified image versions,
-startup/initialization commands, readiness probes, and reset/test commands.
-Canonical launch remains `docker compose up --build`, using image-packaged graph
-assets, production runners, explicit settings, idempotent initialization, loopback
-ports, and no host Python/Node/source mounts. A separate optional development
-configuration may provide mounts and reload.
+Every setting in `.env.example` is explicitly forwarded or consumed by Compose.
+The browser/internal API settings are reserved for Stage 6; there are no domain
+API requests yet. Browser localhost must never become the Next server's container
+API address. Rebuild to change public build-time values. Native backend development
+must override FALKORDB_HOST to localhost. API_HOST/API_PORT were removed from the
+example because they were not implemented settings; internal ports are fixed.
+LLM settings are deferred to Stage 5. No credentials belong in NEXT_PUBLIC variables.
 
-Readiness will be `GET /health/ready` (and `/health` alias), returning 503 before
-required init or while graph queries fail. `GET /health/live` checks the process.
-A Redis PONG alone never proves FalkorDB graph capability.
+For occupied default ports, update the three published ports plus browser API URL
+and CORS origins before rebuilding. The current session's dedicated demonstration
+uses frontend 13000, backend 18000, and graph 16379 to avoid another application.
 
-## Settings and API addresses
+## Persistence and reset
 
-The current `.env.example` lists FALKORDB_HOST/PORT/GRAPH, API_HOST/PORT,
-ENVIRONMENT, CORS_ORIGINS, and NEXT_PUBLIC_API_URL. Not all are implemented or
-forwarded by Compose: API_HOST/PORT are not consumed by current Python settings,
-Compose hardcodes graph/environment and omits CORS. Copying the example does not
-currently configure every container setting.
-
-Stage 1 must document and forward all supported settings with validated ranges,
-connection/socket/query timeouts, initialization options, and explicit persistence
-settings. Stage 5 adds optional LLM endpoint/model/server-side key plus bounded
-timeouts/call limits. Missing optional LLM settings must not block the deterministic
-graph demo. No credentials belong in public frontend environment variables.
-
-Browser-facing API URL: `http://localhost:8000`. Container-side Next.js server API
-URL: `http://backend:8000`. Container FalkorDB host: `falkordb`; host-side access:
-`localhost:6379`. `NEXT_PUBLIC_*` values may be embedded at build time: wire build
-arguments as required. CORS must allow the actual browser origin and reject
-malformed values. The committed example must match implemented settings as stages
-land, including removal of unused variables.
-
-## Persistence, initialization, and reset target
-
-Use a separate named Compose project and fresh volumes for acceptance testing.
-Never operate on the user's existing demo volume during clean-start verification.
-Confirm the effective persistence configuration, create an extra non-fixture probe
-record, restart, and retrieve that same record. Repeated seed counts alone cannot
-prove persistence because startup could recreate fixtures. Test fixture idempotency
-separately and ensure initialization preserves unrelated records.
-
-The proposed single seed/reset CLI is `graph/seed.py` calling the backend loader;
-**it does not exist yet**. Reset must explicitly require the designated demo graph,
-refuse other graphs, and never delete other graphs or volumes. No verified reset
-command can be supplied at this revision. Publish the exact container CLI command
-only after its restrictions and behavior pass live tests.
-
-## Tests currently available
-
-For an already prepared host environment (not canonical Docker verification):
+The named volume mounts at `/var/lib/falkordb/data`; AOF is enabled with fsync every
+second and RDB snapshots enabled. Verify effective settings, not just the YAML:
 
 ```bash
-PYTHONDONTWRITEBYTECODE=1 backend/.venv/bin/python -m pytest backend/tests -q -p no:cacheprovider
-npm --prefix frontend run lint
-npm --prefix frontend run build
-docker compose config --quiet
+docker compose exec falkordb redis-cli --raw CONFIG GET dir appendonly appendfsync
 ```
 
-The virtualenv is local and not included in a clone. The current lint script uses
-`next lint`; it must migrate to ESLint CLI when upgrading to Next 16. Stage 7 must
-provide container/CI commands for unit tests, explicitly required live graph tests,
-type checking, and build. Live tests must fail clearly when their DB is missing
-and use isolated test graphs whose cleanup rejects the demo graph.
+The live verification script writes a unique non-fixture record in a separate
+probe graph, then reads it after stop/start and after container replacement before
+any initialization can recreate that probe graph. It also confirms the effective
+directory/AOF settings. Fixture recreation would not prove persistence.
 
-## Troubleshooting
-
-- Absent Docker socket/engine: start Docker Engine/Desktop, then inspect `docker info`
-  before attempting container validation. This review could not run containers.
-- Redis responds but readiness fails: inspect graph module/query capability and
-  schema/seed initialization; do not substitute PING for graph verification.
-- UI cannot reach backend: distinguish browser address from Compose DNS and inspect
-  browser-origin CORS and build-time API settings.
-- Missing graph assets: verify backend image build context includes graph/; a host
-  bind mount does not establish that a fresh image contains them.
-- No historical match/missing provenance: report absent evidence rather than
-  guessing relationships or confirmed causes.
-- Optional LLM failure: deterministic mode must explain the same successfully
-  retrieved graph evidence and show a fallback reason; graph failure returns 503.
+There is no supported demo reset command yet. Stage 2 will add the single loader
+and explicit demo-only reset. Do not use volume deletion for routine startup or
