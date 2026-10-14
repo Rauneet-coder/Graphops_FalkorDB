@@ -33,7 +33,7 @@ export default function HomePage() {
         </div>
         <div className="status-pill">
           <span className="dot" />
-          <span>FalkorDB Engine Ready</span>
+          <span>Investigation UI planned</span>
         </div>
       </header>
 
