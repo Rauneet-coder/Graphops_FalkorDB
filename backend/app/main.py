@@ -22,13 +22,15 @@ def create_app(
         application.state.falkordb = client
         application.state.graph_limiter = limiter
 
-        async def initialize_until_available() -> None:
-            while not await anyio.to_thread.run_sync(client.initialize, limiter=limiter):
+        async def maintain_initialization() -> None:
+            while True:
+                if not client.initialized:
+                    await anyio.to_thread.run_sync(client.initialize, limiter=limiter)
                 await anyio.sleep(config.GRAPH_INIT_RETRY_SECONDS)
 
         try:
             async with anyio.create_task_group() as tasks:
-                tasks.start_soon(initialize_until_available)
+                tasks.start_soon(maintain_initialization)
                 try:
                     yield
                 finally:
