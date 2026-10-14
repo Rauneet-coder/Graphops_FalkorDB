@@ -62,6 +62,10 @@ class FalkorDBClient:
             probe_graph(self.get_graph(), self.settings.FALKORDB_QUERY_TIMEOUT_MS)
         except (RedisError, OSError, RuntimeError, AttributeError) as exc:
             logger.warning("Graph capability unavailable: %s", type(exc).__name__)
+            # Empty graph initialization has no durable write to replay in AOF.
+            # After replacement the lifespan worker must initialize again.
+            # Readiness itself remains read-only and reports this failure as 503.
+            self._initialized = False
             return False
         return True
 
