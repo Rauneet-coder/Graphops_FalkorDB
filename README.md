@@ -1,74 +1,38 @@
-# GraphOps 🌐
+# GraphOps
 
-**AI-powered SRE incident investigation system using FalkorDB.**
+An SRE incident investigation agent using FalkorDB, FastAPI, Next.js App Router,
+and Docker Compose. Target: Track 01, Agents That Act on Connected Data.
 
-Built for the **FalkorDB Hackathon**. GraphOps bridges topology-aware graph reasoning, multi-hop causal dependency tracing, and automated root-cause analysis to dramatically reduce Mean Time to Resolution (MTTR).
+**Status — October 14, 2026:** buildable scaffold, incomplete investigation
+product. Local HEAD and remote `main` were checked and both match
+`fc9739d50a025662ae208807e96781d12db6affd`. Before the event opens, changes are
+limited to review, research, planning, and documentation.
 
----
+The [official rules](https://www.wemakedevs.org/hackathons/falkordb) place the event
+between October 15, 00:01 IST and October 18, 23:59 IST. General infrastructure
+may be reused; the submission and main FalkorDB implementation must be new event
+work. A local demo needs complete setup instructions and a working video if it
+cannot be deployed.
 
-## 🛠️ Stack
+## Implemented versus planned
 
-- **Frontend:** Next.js (App Router, React 18, TypeScript)
-- **Backend:** FastAPI (Python 3.11+, async architecture)
-- **Database:** FalkorDB (Ultra-fast Redis-based Graph DB using Cypher)
-- **Runtime:** Docker & Docker Compose (100% Local Deployment)
+| Implemented scaffold | Still required |
+| --- | --- |
+| FastAPI `/` and `/health`, settings, basic client wrapper | Truthful readiness, lifespan, bounded I/O, graph-backed domain APIs |
+| Eight-label ontology metadata, fixture, migration, query templates | Nine-label reconciled model, honest seed loader, live query validation |
+| Static Next.js ontology page | Incident dashboard, investigation, evidence and directed paths |
+| Three-service Compose and Dockerfiles | Locked builds, graph assets, initialization, persistence verification |
+| Three basic backend tests | Live graph, API, failure, grounded AI, browser and clean-volume checks |
 
----
+`/health` currently returns HTTP 200 and `healthy` even with `connected: false`.
+The UI's engine-ready badge is static. Neither proves graph readiness. No
+investigation API, seed CLI, AI agent, or reset command currently exists.
 
-## 📐 Graph Schema
+## Local scaffold startup
 
-### Graph Nodes
-- `Service` — Microservice, datastore, or cache component
-- `Repository` — Git source code repository
-- `Commit` — Code commit or manifest diff
-- `Developer` — Service owner, committer, and on-call engineer
-- `Deployment` — Released environment artifact
-- `Incident` — SRE outage or alert
-- `RootCause` — Diagnosed technical failure reason
-- `Fix` — Remediation action or rollback command
+Requires Docker with its engine running and Docker Compose. The canonical target
+command is:
 
-### Relationships
-- `[:DEPENDS_ON]` — Upstream service dependency calls
-- `[:OWNED_BY]` — Developer ownership of services & repositories
-- `[:CHANGED_BY]` — Author and repo linkage for commits
-- `[:DEPLOYED_BY]` — Service, commit, and developer linkage for deployments
-- `[:CAUSED_BY]` — Symptom service and root cause linkage for incidents
-- `[:RESOLVED_BY]` — Remediation fix applied to incidents and root causes
-
----
-
-## 🚀 Quickstart
-
-### Prerequisites
-- [Docker](https://www.docker.com/) & Docker Compose
-- Node.js 18+ (for local frontend development)
-- Python 3.11+ (for local backend development)
-
-### 1. Configure Environment
 ```bash
 cp .env.example .env
-```
-
-### 2. Launch Complete Stack via Docker Compose
-```bash
-docker compose up -d
-```
-
-Services will be accessible at:
-- **Next.js Frontend:** [http://localhost:3000](http://localhost:3000)
-- **FastAPI API & Docs:** [http://localhost:8000/docs](http://localhost:8000/docs)
-- **FalkorDB Engine:** `localhost:6379` (`redis-cli -p 6379`)
-
-### 3. Verify Health
-```bash
-curl http://localhost:8000/health
-```
-
----
-
-## 📚 Documentation
-- [AGENTS.md](file:///Users/rauneetsingh/Developer/Graphops/AGENTS.md) — SRE agent rules & conventions
-- [docs/ARCHITECTURE.md](file:///Users/rauneetsingh/Developer/Graphops/docs/ARCHITECTURE.md) — Complete MVP architecture specification
-- [docs/GRAPH_SCHEMA.md](file:///Users/rauneetsingh/Developer/Graphops/docs/GRAPH_SCHEMA.md) — Ontology definitions and Cypher queries
-- [docs/TASKS.md](file:///Users/rauneetsingh/Developer/Graphops/docs/TASKS.md) — 4-day hackathon sprint execution plan
-- [docs/FOUNDATION_REVIEW.md](file:///Users/rauneetsingh/Developer/Graphops/docs/FOUNDATION_REVIEW.md) — Verification results & next steps
+docker compose up --build
