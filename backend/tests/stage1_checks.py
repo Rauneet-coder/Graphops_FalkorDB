@@ -3,8 +3,8 @@
 import json
 import sys
 import time
-from uuid import uuid4
 from pathlib import Path
+from uuid import uuid4
 
 import httpx
 from app.core.config import Settings
