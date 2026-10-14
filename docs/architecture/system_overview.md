@@ -1,28 +1,25 @@
-# System Architecture Overview
+# System overview
+
+Canonical design: [architecture](../ARCHITECTURE.md),
+[target graph model](../GRAPH_SCHEMA.md), and [ordered acceptance checks](../TASKS.md).
+Current implementation status: [foundation review](../FOUNDATION_REVIEW.md).
 
 ```mermaid
-graph TD
-    Client["SRE Engineer / Browser"] -->|HTTP / React Flow| Frontend["Next.js Frontend (Port 3000)"]
-    Frontend -->|REST API| Backend["FastAPI Backend (Port 8000)"]
-    Backend -->|Cypher / Redis Protocol| FalkorDB[("FalkorDB Engine (Port 6379)")]
-    
-    subgraph "GraphOps Causal Engine"
-        Causal["Causal Traversal Engine"] -->|Multi-Hop Path| FalkorDB
-        Migrations["Migration Runner"] -->|Apply Indexes| FalkorDB
-        Ontology["SRE Ontology Schema"] -.->|Validate| Causal
-    end
+flowchart LR
+    Browser[Browser] --> Frontend[Next.js App Router]
+    Frontend --> Backend[FastAPI routes and investigation service]
+    Backend -->|Bounded read-only Cypher / Redis protocol| DB[(FalkorDB)]
+    Initializer[Validated idempotent initializer] -->|Explicit writes| DB
+    Backend --> LLM[Optional bounded LLM tools and synthesis]
+    LLM --> Backend
 ```
 
-## Component Breakdown
+The baseline has a static frontend, root/health routes, graph templates, and
+Compose scaffolding. Investigation, truthful readiness, nine-label reconciliation,
+initialization, AI, and interactive paths remain planned. Next 14 is currently
+locked and must be upgraded to a supported patched version. Driver I/O currently
+blocks an async route and must move to supported async APIs or bounded workers.
 
-1. **Frontend (`/frontend`)**:
-   - Built with Next.js 14 App Router, React 18, and TypeScript.
-   - Interactive topology visualization highlighting microservice dependency paths and culprit deployments during active outages.
-
-2. **Backend (`/backend`)**:
-   - Asynchronous FastAPI application managing connection pooling to FalkorDB via `falkordb-py`.
-   - Multi-hop Cypher queries for blast-radius calculation, candidate culprit isolation within temporal windows, and historic RCA pattern matching.
-
-3. **Graph Engine (`/graph` & FalkorDB Container)**:
-   - High-performance C-based Graph engine using OpenCypher over Redis protocol (port 6379).
-   - Domain ontology strictly adhering to the 8 SRE nodes and 6 causal relationships defined in [AGENTS.md](file:///Users/rauneetsingh/Developer/Graphops/AGENTS.md).
+The target preserves FalkorDB, FastAPI, Next.js, and Docker Compose. All essential
+dependency/time-window/historical reasoning runs in Cypher. No automatic rollback,
+developer contact, streaming, or cause/fix writeback is part of the MVP.
