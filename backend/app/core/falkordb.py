@@ -1,51 +1,35 @@
+"""Lifespan-owned, bounded synchronous client; call through the graph worker pool."""
+
 import logging
+from threading import RLock
 
-from app.core.config import settings
+from falkordb import FalkorDB
+from redis.backoff import NoBackoff
+from redis.exceptions import RedisError
+from redis.retry import Retry
 
-logger = logging.getLogger("graphops.falkordb")
+from app.core.config import Settings
+from app.graph.runtime import initialize_graph, probe_graph
 
-try:
-    from falkordb import FalkorDB
-    from redis.exceptions import RedisError
-except ImportError:
-    FalkorDB = None  # type: ignore
-    RedisError = Exception  # type: ignore
+logger = logging.getLogger(__name__)
 
 
 class FalkorDBClient:
-    def __init__(self):
-        self._driver: object | None = None
+    def __init__(self, settings: Settings):
+        self.settings = settings
+        self._driver: FalkorDB | None = None
+        self._initialized = False
+        self._lock = RLock()
 
-    def get_client(self):
-        if FalkorDB is None:
-            raise RuntimeError(
-                "falkordb package is not installed. Install with 'pip install falkordb'."
-            )
-        if self._driver is None:
-            self._driver = FalkorDB(
-                host=settings.FALKORDB_HOST,
-                port=settings.FALKORDB_PORT,
-            )
-        return self._driver
+    @property
+    def initialized(self) -> bool:
+        return self._initialized
 
-    def get_graph(self, graph_name: str | None = None):
-        client = self.get_client()
-        target_graph = graph_name or settings.FALKORDB_GRAPH
-        return client.select_graph(target_graph)
-
-    def ping(self) -> bool:
-        if FalkorDB is None:
-            return False
-        try:
-            client = self.get_client()
-            if hasattr(client, "connection"):
-                return bool(client.connection.ping())
-            return True
-        except (RedisError, ConnectionError, TimeoutError, OSError, RuntimeError) as exc:
-            logger.debug("FalkorDB ping failed: %s", exc)
-            # Reset driver so next call retries connection fresh
-            self._driver = None
-            return False
-
-
-falkordb_client = FalkorDBClient()
+    def get_client(self) -> FalkorDB:
+        with self._lock:
+            if self._driver is None:
+                self._driver = FalkorDB(
+                    host=self.settings.FALKORDB_HOST,
+                    port=self.settings.FALKORDB_PORT,
+                    socket_connect_timeout=self.settings.FALKORDB_CONNECT_TIMEOUT_SECONDS,
+                    socket_timeout=self.settings.FALKORDB_SOCKET_TIMEOUT_SECONDS,
