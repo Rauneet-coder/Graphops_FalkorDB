@@ -118,3 +118,44 @@ plugins' published peer ranges end at ESLint 9. The pin is a compatibility
 limitation, not a claim of supported lint tooling. Revisit when upstream publishes
 compatible plugin releases. The production app runs supported Node 24/Next 16.
 
+[Next's support policy](https://nextjs.org/support-policy) lists 14 unsupported.
+The [October 14 update announcement](https://nextjs.org/blog/upcoming-nextjs-security-update-october-2026)
+was checked; final advisories for that scheduled release were not available at
+selection time, and npm's current stable was 16.4.0. Recheck when published. An
+npm audit result is bounded by its current advisory database, not a security guarantee.
+
+Official sources: [FalkorDB release](https://github.com/FalkorDB/FalkorDB/releases/tag/v6.0.2),
+[Python client](https://github.com/FalkorDB/falkordb-py),
+[read-only query](https://docs.falkordb.com/commands/graph.ro-query),
+[persistence](https://docs.falkordb.com/operations/durability/persistence),
+[Next 16 upgrade](https://nextjs.org/docs/app/guides/upgrading/version-16).
+These support design choices; actual live results above establish tested behavior.
+
+## Changed file groups and remaining work
+
+| Group | Files |
+| --- | --- |
+| Backend lifecycle/configuration | app/main.py, app/core/config.py, app/core/falkordb.py, app/graph/__init__.py, app/graph/runtime.py |
+| Backend dependencies/tests | requirements.in/txt, tests/test_health.py, tests/test_graph_runtime.py, tests/conftest.py, tests/stage1_checks.py |
+| Docker/runtime | docker-compose.yml, docker-compose.dev.yml, docker-compose.test.yml, backend/Dockerfile, frontend/Dockerfile, root/frontend .dockerignore, .env.example |
+| Frontend build/health | package.json/lock, next.config.mjs, eslint.config.mjs replacing .eslintrc.json, tsconfig.json, next-env.d.ts, src/app/health/route.ts, homepage badge copy |
+| Verification | scripts/verify-stage1.sh |
+| Guidance/docs | AGENTS.md, README, task/architecture/API/schema/review/runbook/overview docs, planned demo, pipeline-scope README (including the preceding documentation pass) |
+
+Stage 2 is the next major implementation task, but is not started under current
+scope. The legacy fixture still contains an active answer/fix and must be replaced
+before loading an honest demo. Initialization must then validate schema/seed
+before demo readiness. No graph-backed domain API, investigation service, grounded
+AI, incident UI, demo reset CLI, full MVP CI, or working investigation video exists.
+The authenticated submission panel remains unverified. No unrelated Docker
+container was stopped/reconfigured, and no user volume was deleted.
+
+## Running three-service infrastructure
+
+A separate fresh `graphops-stage1-demo` project was also launched with canonical
+production Compose (no test override or plain-Redis service), on unused loopback
+ports 13000/18000/16379. All three services are healthy. Host-side frontend health
+and backend readiness returned 200. A direct read-only Cypher query returned 1.
+Docker inspection confirmed no backend/frontend mounts and only the intended
+FalkorDB named volume at the canonical directory; every published binding is
+127.0.0.1. See [the runbook](runbooks/quickstart.md) for exact session commands.
