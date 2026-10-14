@@ -1,0 +1,12 @@
+# Optional source mounts/reload; never used by canonical startup or acceptance.
+services:
+  backend:
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    volumes:
+      - ./backend/app:/app/backend/app:ro
+      - ./graph:/app/graph:ro
+  frontend:
+    build:
+      target: development
+    volumes:
+      - ./frontend/src:/app/src:ro
