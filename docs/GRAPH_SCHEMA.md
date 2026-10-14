@@ -68,3 +68,82 @@ added merely to use a term.
 ## Legacy reconciliation
 
 | Existing relation | Target change and rationale |
+| --- | --- |
+| `Commit → CHANGED_BY → Developer` | Replace with `AUTHORED_BY`; authorship is distinct from deployment execution |
+| `Commit → CHANGED_BY → Repository` | Replace with `BELONGS_TO`; repository membership is distinct from authorship |
+| `Deployment → DEPLOYED_BY → Service` | Reverse to `Service → DEPLOYED_BY → Deployment`; release is attached to the service it deployed |
+| `Deployment → DEPLOYED_BY → Commit` | Replace with deployment → run → commit provenance through `TRIGGERED_BY` |
+| `Deployment → DEPLOYED_BY → Developer` | Remove legacy implied operator link; retain only supported author/owner evidence |
+| `Incident → CAUSED_BY → Service` | Replace with `AFFECTED`; observed symptoms are not confirmed causes |
+| Active incident cause/fix links | Remove from the replacement active scenario; keep expected answers in tests |
+| Historical verified cause/fix links | Retain with required verification/outcome properties |
+
+Implement a versioned, explicit migration plan for any already populated legacy
+demo graph; routine startup must not wipe it. Detect incompatible versions and
+report readiness failure with migration guidance. Test migration/repeated init
+on isolated graphs, then update fixtures, queries, loader, types, and docs as one
+stage. Never silently mix legacy and target directions.
+
+## Traversal and temporal semantics
+
+Outgoing `DEPENDS_ON` finds upstream dependencies. Incoming traversal finds
+downstream blast radius; keep separately named repository tools. A stored edge's
+direction remains unchanged when traversed in reverse. Return ordered path nodes,
+edge IDs, and per-step `forward`/`reverse` traversal direction.
+
+Bound hop count, rows, time windows, and query timeout. Search the incident service
+itself (zero hops) and its upstream services. Filter every relevant service and
+deployment to the selected environment. Include the lower and upper deployment
+window endpoints, exclude future changes, deduplicate deployments reached by
+multiple paths while retaining bounded supporting paths, and order by timestamp
+then stable ID. Optional metadata uses optional matches rather than mandatory
+joins. Test cycles and zero-hop behavior on the selected server.
+
+Historical matches require `status = RESOLVED`, start and resolution strictly
+earlier than the active incident, a shared relevant service on the dependency
+chain, and compatible recorded symptoms/categories. Retrieve verified cause and
+successful applied fix paths, rank deterministically, and explain which facts
+make the match relevant. Historical similarity does not confirm the active cause.
+
+## Seed design and validation
+
+The primary replacement fixture uses checkout → payment → Redis, an active
+checkout timeout incident, a recent payment pool configuration change, its
+commit/diff/repository/pipeline/author/owner evidence, and an earlier resolved
+incident with a proven fix. Include an unrelated recent deployment and a competing
+plausible candidate. Live test fixtures also exercise missing metadata, exact
+boundaries, future/staging changes, duplicate paths, cycles, and empty results.
+Schema drift and recurring deadlock scenarios wait until the primary flow works.
+
+Use a documented fixed demo clock of **2026-10-15T06:30:00Z** (12:00 IST); encode
+relative events against it, never the host's current clock. Query windows anchor
+to the selected incident timestamp. Fixture observations are synthetic.
+
+One loader and one CLI (`graph/seed.py`, planned) handle validation and idempotent
+initialization. Before any write, check label/type allowlists, identity agreement,
+required fields/enums, endpoint existence/direction, environment consistency,
+temporal consistency, duplicate IDs, and absence of active confirmed causes/fixes.
+Use parameterized values and allowlisted labels/types for MERGE operations.
+Test twice for identical counts/IDs/properties and preserve non-fixture records.
+
+## Metadata, indexes, and uniqueness
+
+`graph/schema/ontology.json` is currently custom metadata despite its `$schema`
+declaration. It is not a validated JSON Schema. Stage 2 will identify it as custom
+metadata and validate fixtures through typed models; do not imply generic JSON
+Schema validation has checked it.
+
+Plan range indexes on each label's `id` and necessary service/environment/time
+lookups. Verify syntax, existing-index behavior, and query results live against
+the pinned server. The [official range-index documentation](https://docs.falkordb.com/cypher/indexing/range-index)
+documents lookup syntax; index creation and metadata `unique: true` do not prove
+identity uniqueness. Validate duplicates before/after writes and define a single
+initialization writer for the local MVP. If supported constraints are selected,
+test their enforcement explicitly rather than assuming it.
+
+Evidence IDs identify facts by stable entity/edge ID plus field/source reference.
+Path IDs derive from ordered stable node/edge IDs and traversal directions. Do
+not expose the database's numeric IDs. All investigation reads use
+[GRAPH.RO_QUERY](https://docs.falkordb.com/commands/graph.ro-query) through the
+official client, with bounded timeouts/results; writes belong to initialization
+or future explicitly recorded resolution operations.
