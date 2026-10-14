@@ -28,3 +28,37 @@ class Settings(BaseSettings):
 
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
+    def parse_cors_origins(cls, value: object) -> list[str]:
+        if isinstance(value, str):
+            value = value.strip()
+            if value.startswith("["):
+                value = json.loads(value)
+            else:
+                value = [origin.strip() for origin in value.split(",")]
+        if not isinstance(value, list) or not value:
+            raise ValueError("CORS_ORIGINS must be a nonempty list of HTTP(S) origins")
+        for origin in value:
+            if not isinstance(origin, str):
+                raise ValueError("CORS origins must be strings")  # noqa: TRY004
+            parsed = urlsplit(origin)
+            if (
+                parsed.scheme not in {"http", "https"}
+                or not parsed.hostname
+                or parsed.username is not None
+                or parsed.password is not None
+                or parsed.path
+                or parsed.query
+                or parsed.fragment
+                or any(character.isspace() for character in origin)
+            ):
+                raise ValueError("Each CORS origin must contain only scheme, host, and optional port")
+            _ = parsed.port  # Reject malformed/out-of-range ports.
+        return value
+
+    @model_validator(mode="after")
+    def check_timeout_order(self) -> "Settings":
+        if self.FALKORDB_QUERY_TIMEOUT_MS >= self.FALKORDB_SOCKET_TIMEOUT_SECONDS * 1000:
+            raise ValueError("Graph query timeout must be shorter than socket timeout")
+        return self
+
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
